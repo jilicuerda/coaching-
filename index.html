@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Haven Strat Board</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 15px;
+            cursor: pointer;
+            background: #ff4655; /* Valorant Red */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #ff5e6b;
+        }
+        .mode-active {
+            outline: 3px solid #00ff00;
+        }
+        #map-container {
+            position: relative;
+            width: 800px;
+            height: 800px;
+            background-image: url('Haven+Map+Callouts+Valorant.webp');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            border: 2px solid #333;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            pointer-events: none; /* Disabled by default, enabled via JS */
+        }
+        .agent {
+            width: 40px;
+            height: 40px;
+            position: absolute;
+            z-index: 20;
+            cursor: grab;
+            border-radius: 8px;
+            border: 2px solid white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 12px;
+            user-select: none;
+        }
+        .agent:active {
+            cursor: grabbing;
+        }
+        .atk { background-color: #00ffcc; color: black; } /* Attacker color */
+        .def { background-color: #ff4655; color: white; } /* Defender color */
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <button id="dragBtn" class="mode-active">Mode: Drag Agents</button>
+        <button id="drawBtn">Mode: Draw Lines</button>
+        <button id="clearBtn">Clear Drawing</button>
+    </div>
+
+    <div id="map-container">
+        <canvas id="drawCanvas" width="800" height="800"></canvas>
+        
+        <div class="agent atk" style="top: 200px; left: 200px;">JETT</div>
+        <div class="agent atk" style="top: 250px; left: 200px;">SOVA</div>
+        <div class="agent atk" style="top: 200px; left: 250px;">OMEN</div>
+        <div class="agent atk" style="top: 250px; left: 250px;">NEON</div>
+        <div class="agent atk" style="top: 400px; left: 200px;">YORU</div>
+
+        <div class="agent def" style="top: 150px; left: 450px;">CYPHER</div>
+        <div class="agent def" style="top: 300px; left: 450px;">RAZE</div>
+        <div class="agent def" style="top: 700px; left: 400px;">PHX</div>
+        <div class="agent def" style="top: 700px; left: 450px;">CHAM</div>
+        <div class="agent def" style="top: 700px; left: 350px;">OMEN</div>
+    </div>
+
+    <script>
+        // --- Dragging Logic ---
+        const agents = document.querySelectorAll('.agent');
+        let isDragging = false;
+        let currentAgent = null;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        agents.forEach(agent => {
+            agent.addEventListener('mousedown', (e) => {
+                if (canvas.style.pointerEvents === 'auto') return; // Don't drag if drawing
+                isDragging = true;
+                currentAgent = agent;
+                const rect = agent.getBoundingClientRect();
+                const containerRect = document.getElementById('map-container').getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+            });
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging || !currentAgent) return;
+            const container = document.getElementById('map-container');
+            const containerRect = container.getBoundingClientRect();
+            
+            let x = e.clientX - containerRect.left - offsetX;
+            let y = e.clientY - containerRect.top - offsetY;
+
+            // Keep within bounds
+            x = Math.max(0, Math.min(x, containerRect.width - currentAgent.offsetWidth));
+            y = Math.max(0, Math.min(y, containerRect.height - currentAgent.offsetHeight));
+
+            currentAgent.style.left = x + 'px';
+            currentAgent.style.top = y + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            currentAgent = null;
+        });
+
+        // --- Drawing Logic ---
+        const canvas = document.getElementById('drawCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+
+        // Set line styles to match your yellow arrows
+        ctx.strokeStyle = '#ffff00'; 
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.stroke();
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        canvas.addEventListener('mouseout', () => {
+            isDrawing = false;
+        });
+
+        // --- Controls Logic ---
+        const dragBtn = document.getElementById('dragBtn');
+        const drawBtn = document.getElementById('drawBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        dragBtn.addEventListener('click', () => {
+            canvas.style.pointerEvents = 'none';
+            dragBtn.classList.add('mode-active');
+            drawBtn.classList.remove('mode-active');
+        });
+
+        drawBtn.addEventListener('click', () => {
+            canvas.style.pointerEvents = 'auto';
+            drawBtn.classList.add('mode-active');
+            dragBtn.classList.remove('mode-active');
+        });
+
+        clearBtn.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+    </script>
+</body>
+</html>
